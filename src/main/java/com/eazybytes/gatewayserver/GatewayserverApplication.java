@@ -2,10 +2,13 @@ package com.eazybytes.gatewayserver;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.gateway.filter.ratelimit.KeyResolver;
+import org.springframework.cloud.gateway.filter.ratelimit.RedisRateLimiter;
 import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.HttpMethod;
+import reactor.core.publisher.Mono;
 
 import java.time.Duration;
 
@@ -27,7 +30,12 @@ public class GatewayserverApplication {
                                         .setRetries(3)
                                         .setMethods(HttpMethod.GET)
                                         .setBackoff(Duration.ofMillis(100), Duration.ofMillis(1000), 2, true)
-                                ))
+                                )
+                                .requestRateLimiter(rateLimiterConfig -> rateLimiterConfig
+                                        .setRateLimiter(redisRateLimiter())
+                                        .setKeyResolver(getKeyResolver())
+                                )
+                        )
                         .uri("lb://ACCOUNTS")
                 )
                 .route(r -> r.path("/eazybank/loans/**")
@@ -39,7 +47,10 @@ public class GatewayserverApplication {
                                         .setMethods(HttpMethod.GET)
                                         .setBackoff(Duration.ofMillis(100), Duration.ofMillis(1000), 2, true)
                                 )
-                        )
+                                .requestRateLimiter(rateLimiterConfig -> rateLimiterConfig
+                                        .setRateLimiter(redisRateLimiter())
+                                        .setKeyResolver(getKeyResolver())
+                                ))
                         .uri("lb://LOANS"))
                 .route(r -> r.path("/eazybank/cards/**")
                         .filters(f -> f.rewritePath("/eazybank/cards/(?<segment>.*)", "/${segment}")
@@ -50,9 +61,25 @@ public class GatewayserverApplication {
                                         .setMethods(HttpMethod.GET)
                                         .setBackoff(Duration.ofMillis(100), Duration.ofMillis(1000), 2, true)
                                 )
-                        )
+                                .requestRateLimiter(rateLimiterConfig -> rateLimiterConfig
+                                        .setRateLimiter(redisRateLimiter())
+                                        .setKeyResolver(getKeyResolver())
+                                ))
                         .uri("lb://CARDS"))
                 .build();
     }
 
+    @Bean
+    public RedisRateLimiter redisRateLimiter() {
+        return new RedisRateLimiter(10, 20, 1);
+    }
+
+    @Bean
+    KeyResolver getKeyResolver() {
+        return exchange -> {
+            String user = exchange.getRequest().getHeaders().getFirst("user");
+            String key = user != null ? user : "anonymous";
+            return Mono.just(key);
+        };
+    }
 }

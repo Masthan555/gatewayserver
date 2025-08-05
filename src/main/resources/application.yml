@@ -11,9 +11,15 @@ spring:
             locator: # lookup services from Eureka
               enabled: true  # Enable service discovery routing
               lower-case-service-id: true  # Optional: allow lowercase service IDs
-      httpclient:
-        connect-timeout: 1000
-        response-timeout: 5s
+          httpclient:
+            connect-timeout: 1000
+            response-timeout: 5s
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      connect-timeout: 2s
+      timeout: 1s
 
 management:
   endpoints:
