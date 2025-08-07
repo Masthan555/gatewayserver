@@ -32,6 +32,9 @@ management:
   info:
     env:
       enabled: true
+  micrometer:
+    tags:
+      application: ${spring.application.name}
 
 info:
   app:
